@@ -2,17 +2,17 @@
 
 // **************************************************************************************
 //  Name		:	_39693_Ctrl_Pkg.ino					*
-//  Author		:	Jason Traud						*
+//  Author		:	Jason Traud/Matt Green					*
 //  Notice		:	Copyright (c) 2013 SuperDroid Robots			*
 //			:	All Rights Reserved					*
-//  Date		:	December 28, 2013           				*
+//  Date		:	March 18, 2013           				*
 //											*
 //  Arduino		:	Arduino Mega 2560 R3 Development Board			*
 //	Shield(s)	:	Ethernet Shield R3, SDR Mega expansion shield		*
 //	Sensors  	:	2x Max Sonar Rangefinders                               *
 //  Motor Controller	:	4x SDR PWM Motor Controllers    			*
 //											*
-//  Notes		: To be used with the standard WiFi ATR program			*
+//  Notes		: To be used with the custom Wifi ATR program			*
 //											*
 //			Settings:							*
 //				- Motor							*
@@ -66,9 +66,9 @@ EthernetServer server(5050);                        // Port number used in WiFi 
 // Networking Buffer
 // *********************
 unsigned char inputBuffer[3];         // Buffer to hold the incoming data flag
-unsigned char head;                   // oldest written byte
+unsigned char head;                   // newest written byte
 unsigned char mid;                    // mid written byte
-unsigned char tail;                   // newest written byte
+unsigned char tail;                   // oldest written byte
 
 // *********************
 // Motor Constants 
@@ -83,8 +83,8 @@ int maxMotorPower;
 // *********************
 // Servos 
 // *********************
-//Servo servoRight;
-//Servo servoLeft;
+//Servo servoRight;      // This is how you would create normal servo references for commands
+//Servo servoLeft;      // Picking SoftwareServos was a more expandable choice.
 SoftwareServo servoRight; //Declaring the software Servos to be references later
 SoftwareServo servoLeft;
 
@@ -102,6 +102,7 @@ int wait;
 // *********************
 // Recieved RAM
 // *********************
+// This is the information received back from the custom Wifi Program.
 byte Motor_Val_FaB;
 byte Motor_Val_LaR;
 byte Motor_Val_Sp;
@@ -116,8 +117,9 @@ int inputSpin = 0;
 // *********************
 // Transmitted RAM
 // *********************
-word ControlPower;                     // Battery source 1 - Usually 12V
-word MainPower;		               // Battery source 2 - Usually 24V
+//This information could be fed back to the software to manage the batteries power level.
+word ControlPower;                     // Battery source 1 
+word MainPower;		               // Battery source 2 
 word Analog3;                          // Analog2
 
 // *********************
@@ -134,7 +136,8 @@ MotorValues motorFR;
 MotorValues motorRL;	
 MotorValues motorRR;
 int Speed=100;     //Speed of the wheels NOTE: Speed of freely spinning wheels is not the same speed 
-                   // as under a load. May need to adjust this number depending on flooring 
+                   // as under a load. May need to adjust this number depending on flooring
+int WaitTimer=50; 
 int i;            //Used in a loop to ramp up a speed instead of a sudden jump in speed
 // *********************
 // Sonar
@@ -167,10 +170,10 @@ int sideHighRight=sideR+sweepBackward;//calculates the highest values Right swee
 int sideDiff=sweepForward+sweepBackward;//This calcuates the max range of the sweeping
 
 
-int distance=100; // This is used to determine how close the robot gets before changing directiio
+int distance=88; // This is used to determine how close the robot gets before changing directiio
                   // Must consider changing this if the sweeping distance is change
                   // Consider how this will be used when the robot is spining to avoid collisions
-int changeMovementDistance=50;//This is used to determine when the change direction. 
+int changeMovementDistance=40;//This is used to determine when the change direction. 
                               //If one direction is more "open" then the traveling position by x, it will change
                               //see Slide_L,Slide_R and Reverse
 // *********************
@@ -298,6 +301,7 @@ sonarL = analogRead(A9); //Reads in the value from each Sonar each time this loo
 //Serial.print((int)sonarL);
 //Serial.print(" Right is");
 //Serial.println((int)sonarR);
+//autoflag=1;//Comment this back into the code to make the robot start/stay in automation mode
 if(autoflag==1)
   {
 
@@ -312,16 +316,18 @@ if(autoflag==1)
       servoRight.write(frontR);//Sets servo to forward
       WaitForSonars();// waits for the position of the servos to finish
       ini=0; //Prevents entering ini every single loop
-      SweepTimer=0;// initilizes the timer   
-      DriveForward();//Tells the robot to move in the forward position till informed differently
+      SweepTimer=0;// initilizes the timer
+      DriveForward();//Tells the robot to move in the forward position till informed differently   
+      
       }
       else
       {
-        if(SweepTimer==50)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
+        if(SweepTimer==WaitTimer)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
         {
-          SweepTimer=0;//after entering this state sets it back to 0 to reach 50 again(without overflow)
+          SweepTimer=0;//after entering this state sets it back to 0 to reach WaitTimer again(without overflow)
           if(sonarR>distance && sonarL>distance)//If both Left and Right are "open" keep moving forward
           {
+           
            SweepSonarFrontL();//Sweeps the Left  Sonar in the forward direction
            SweepSonarFrontR();//Sweeps the Right Sonar in the forward direction
           //Motor keeps moving forward because no other direction has been given
@@ -333,7 +339,7 @@ if(autoflag==1)
             allStop();       //Stops the motots to prevent crashing into anything
           }
         }
-        SweepTimer=SweepTimer+1;//Increases SweepTimer by 1 to eventually get to 50
+        SweepTimer=SweepTimer+1;//Increases SweepTimer by 1 to eventually get to WaitTimer
       }
     } 
       
@@ -357,9 +363,9 @@ if(autoflag==1)
         } 
       else
       {
-          if(SweepTimer==50)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
+          if(SweepTimer==WaitTimer)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
           {   
-           SweepTimer=0;    //sets the timer back to 0 to allow it to reach 50 again without overflowing    
+           SweepTimer=0;    //sets the timer back to 0 to allow it to reach WaitTimer again without overflowing    
            SweepSonarSideR(); //Sweeps the sonars on the side to check for which direction is safe
            SweepSonarSideL();
            if(servoLeftPosition==90)//When the Left servo reaches 90 increament this varible to check later
@@ -368,7 +374,7 @@ if(autoflag==1)
            }
            if(Looked==2)// After the Left servo reaches 90 twice, you know it has looked both above 90 and below 90
            {
-             if(lowestR<distance && lowestL<distance)//if both the closest left and closest right is less than distance then we cannot slide left or right
+             if(lowestR+changeMovementDistance<distance && lowestL+changeMovementDistance<distance)//if both the closest left and closest right is less than distance then we cannot slide left or right
              {
                State=S_Backward;//Next state is going in reverse because you cannot go left or right
                ini=1;//sets to initilization for next state
@@ -393,7 +399,7 @@ if(autoflag==1)
           if(sonarR<lowestR)
             lowestR=sonarR;
             
-        SweepTimer=SweepTimer+1;//increases to get back to 50 sooner
+        SweepTimer=SweepTimer+1;//increases to get back to WaitTimer sooner
           }
       }
       
@@ -413,9 +419,9 @@ if(autoflag==1)
         else
         {
 
-          if(SweepTimer==50)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
+          if(SweepTimer==WaitTimer)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
           {   
-           SweepTimer=0;  //sets back to 0 to allow reaching of 50 again without overflow       
+           SweepTimer=0;  //sets back to 0 to allow reaching of WaitTimer again without overflow       
              if(sonarR>distance&&sonarL+changeMovementDistance<sonarR) // If while sliding forward there is room to move forward and there is more room to move forward than keep going sideways, go forward
                {
                  State=S_Forward;// change the direction to forward
@@ -438,7 +444,7 @@ if(autoflag==1)
 
            }
            
-        SweepTimer=SweepTimer+1;//gotta get back to 50 somehow
+        SweepTimer=SweepTimer+1;//gotta get back to WaitTimer somehow
         }
       }
       
@@ -457,7 +463,7 @@ if(autoflag==1)
         }
         else
         {
-          if(SweepTimer==50)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
+          if(SweepTimer==WaitTimer)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
           {   
            SweepTimer=0;//ensures proper timing rather than overflow
             if(sonarR<sonarL && sonarL+changeMovementDistance>distance) //If there is more room to move forward(by a margin) than moving Right more Move forward instead 
@@ -502,7 +508,7 @@ if(autoflag==1)
         else
         {
 
-          if(SweepTimer==50)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
+          if(SweepTimer==WaitTimer)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
           {   
            SweepTimer=0; //overflow is bad for timing mmmmmkay?
            if(sonarL<distance && sonarR<distance)// if you still cant move in either direction, just keep spinning just keep spinning
@@ -547,7 +553,7 @@ if(autoflag==1)
         else
         {
 
-          if(SweepTimer==50)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
+          if(SweepTimer==WaitTimer)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
           {   
            SweepTimer=0; 
            if(sonarR<distance&&sonarL<distance)// if neither direction is open keep spinning
@@ -589,7 +595,7 @@ if(autoflag==1)
        }
        else
        {
-         if(SweepTimer==50)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
+         if(SweepTimer==WaitTimer)//Gives time for the sonar motor to move the sensor before updating position. Change the number to effect the frequency.
           {  
            SweepTimer=0; 
 
@@ -657,24 +663,25 @@ if(autoflag==1)
          State=S_Forward;
         servoRightPosition = frontR;  //Sets Right Servo Varible to front
         servoLeftPosition = frontL;  //Sets Left Servo Varible to front
-       
-      
         // Since we've read in our packet, we need to reintialize the buffer so we do not immediately 
-        // return here. 
-        inputBuffer[0] = 0; inputBuffer[1] = 0; inputBuffer[2] = 0;
-        
-        }
-        // Once we've recieved our packet and verified our checksum, we can process the information
-        if(processCheckSum())
+        // return here.
+       if(processCheckSum())
         {
+          inputBuffer[0] = 0; inputBuffer[1] = 0; inputBuffer[2] = 0;
+          processIO();
           processMotors(); // Sends motor commands
-          processIO();  
-          returnPacket();  // Replies back to the program
+            // Replies back to the program
         }
         else
         {
-          allStop();
+          //allStop();
+        } 
+        
         }
+        returnPacket();
+        
+        // Once we've recieved our packet and verified our checksum, we can process the information
+        
             
     }
      
@@ -838,6 +845,7 @@ void processMotors()
 //******************************************************************************
 void processIO()
 {
+// This is the method you would go about reading a digital byte and knowing what commands to follow accordingly.
 //  // Outputs 
 //  mask = B00000001;			// Digital_1.0
 //  if(Digital_1 & mask)
@@ -890,16 +898,16 @@ void returnPacket()
   sendData.Digital = 0x00;
   sendData.Analog1 = (unsigned char)sonarR;
   sendData.Analog2 = (unsigned char)sonarL;
-  sendData.Analog3 = (unsigned char)Analog3;
-  Serial.println("------------");
-  Serial.println(sendData.Pre1);
-  Serial.println(sendData.Pre2);
-  Serial.println(sendData.Pre3);
-  Serial.println(sendData.Pre4);
-  Serial.println(0x00);
-  Serial.println(sendData.Analog1);
-  Serial.println(sendData.Analog2);
-  Serial.println(sendData.Analog3);
+  sendData.Analog3 = (unsigned char)Analog3;//A spare byte that can be used for expansion
+//  Serial.println("------------");
+//  Serial.println(sendData.Pre1);
+//  Serial.println(sendData.Pre2);
+//  Serial.println(sendData.Pre3);
+//  Serial.println(sendData.Pre4);
+//  Serial.println(0x00);
+//  Serial.println(sendData.Analog1);
+//  Serial.println(sendData.Analog2);
+//  Serial.println(sendData.Analog3);
   message = (unsigned char *) &sendData;
   server.write(message, sizeof(returnData));
 }

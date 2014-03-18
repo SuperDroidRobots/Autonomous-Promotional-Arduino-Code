@@ -17,3 +17,5 @@ C:\Users\mgreen\Desktop\GiveAwayWifi\WindowsFormsApplication1\obj\x86\Debug\Gene
 C:\Users\mgreen\Desktop\GiveAwayWifi\WindowsFormsApplication1\obj\x86\Debug\GenerateResource.write.1.tlog
 C:\Users\mgreen\Desktop\GiveAwayWifi\WindowsFormsApplication1\bin\Debug\WindowsFormsApplication1.exe
 C:\Users\mgreen\Desktop\GiveAwayWifi\WindowsFormsApplication1\bin\Debug\WindowsFormsApplication1.pdb
+C:\Users\mgreen\Documents\GitHub\Autonomous-Promotional-Arduino-Code\ControlSoftware\WindowsFormsApplication1\obj\x86\Debug\WindowsFormsApplication1.exe
+C:\Users\mgreen\Documents\GitHub\Autonomous-Promotional-Arduino-Code\ControlSoftware\WindowsFormsApplication1\obj\x86\Debug\WindowsFormsApplication1.pdb
